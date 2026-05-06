@@ -45,12 +45,15 @@ add_service_files(
   DIRECTORY srv
   FILES
     FinishTrajectory.srv
+    DeleteTrajectory.srv
     GetTrajectoryStates.srv
     ReadMetrics.srv
     StartTrajectory.srv
     SubmapQuery.srv
     TrajectoryQuery.srv
     WriteState.srv
+    ReadState.srv
+    ResetMapBuilder.srv
 )
 
 generate_messages(

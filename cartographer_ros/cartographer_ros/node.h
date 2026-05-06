@@ -17,16 +17,19 @@
 #ifndef CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_NODE_H
 #define CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_NODE_H
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <thread>
 
 #include "absl/synchronization/mutex.h"
 #include "cartographer/common/fixed_ratio_sampler.h"
 #include "cartographer/mapping/map_builder_interface.h"
+#include "cartographer/mapping/map_builder.h"
 #include "cartographer/mapping/pose_extrapolator.h"
 #include "cartographer_ros/map_builder_bridge.h"
 #include "cartographer_ros/metrics/family_factory.h"
@@ -34,6 +37,7 @@
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/trajectory_options.h"
 #include "cartographer_ros_msgs/FinishTrajectory.h"
+#include "cartographer_ros_msgs/DeleteTrajectory.h"
 #include "cartographer_ros_msgs/GetTrajectoryStates.h"
 #include "cartographer_ros_msgs/ReadMetrics.h"
 #include "cartographer_ros_msgs/StartTrajectory.h"
@@ -42,6 +46,8 @@
 #include "cartographer_ros_msgs/SubmapList.h"
 #include "cartographer_ros_msgs/SubmapQuery.h"
 #include "cartographer_ros_msgs/WriteState.h"
+#include "cartographer_ros_msgs/ReadState.h"
+#include "cartographer_ros_msgs/ResetMapBuilder.h"
 #include "nav_msgs/Odometry.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
@@ -116,6 +122,12 @@ class Node {
   // Loads a serialized SLAM state from a .pbstream file.
   void LoadState(const std::string& state_filename, bool load_frozen_state);
 
+  // Reset map builder bridge
+  void ResetMapBuilderBridge();
+
+  // Clear trajectory assert
+  void ClearTrajectoryBinding();
+
   ::ros::NodeHandle* node_handle();
 
  private:
@@ -141,21 +153,31 @@ class Node {
   bool HandleFinishTrajectory(
       cartographer_ros_msgs::FinishTrajectory::Request& request,
       cartographer_ros_msgs::FinishTrajectory::Response& response);
-  bool HandleWriteState(cartographer_ros_msgs::WriteState::Request& request,
-                        cartographer_ros_msgs::WriteState::Response& response);
+  bool HandleDeleteTrajectory(
+      cartographer_ros_msgs::DeleteTrajectory::Request& request,
+      cartographer_ros_msgs::DeleteTrajectory::Response& response);
+  bool HandleWriteState(
+      cartographer_ros_msgs::WriteState::Request& request,
+      cartographer_ros_msgs::WriteState::Response& response);
+  bool HandleReadState(
+      cartographer_ros_msgs::ReadState::Request& request,
+      cartographer_ros_msgs::ReadState::Response& response);
   bool HandleGetTrajectoryStates(
       ::cartographer_ros_msgs::GetTrajectoryStates::Request& request,
       ::cartographer_ros_msgs::GetTrajectoryStates::Response& response);
   bool HandleReadMetrics(
       cartographer_ros_msgs::ReadMetrics::Request& request,
       cartographer_ros_msgs::ReadMetrics::Response& response);
+  bool HandleResetMapBuilder(
+      cartographer_ros_msgs::ResetMapBuilder::Request& request,
+      cartographer_ros_msgs::ResetMapBuilder::Response& response);
 
   // Returns the set of SensorIds expected for a trajectory.
   // 'SensorId::id' is the expected ROS topic name.
   std::set<::cartographer::mapping::TrajectoryBuilderInterface::SensorId>
   ComputeExpectedSensorIds(const TrajectoryOptions& options) const;
   int AddTrajectory(const TrajectoryOptions& options);
-  void LaunchSubscribers(const TrajectoryOptions& options, int trajectory_id);
+  void LaunchSubscribers(int trajectory_id, const TrajectoryOptions& options);
   void PublishSubmapList(const ::ros::WallTimerEvent& timer_event);
   void AddExtrapolator(int trajectory_id, const TrajectoryOptions& options);
   void AddSensorSamplers(int trajectory_id, const TrajectoryOptions& options);
@@ -178,11 +200,14 @@ class Node {
   const NodeOptions node_options_;
 
   tf2_ros::TransformBroadcaster tf_broadcaster_;
+  tf2_ros::Buffer* tf_buffer_;
 
   absl::Mutex mutex_;
   std::unique_ptr<cartographer_ros::metrics::FamilyFactory> metrics_registry_;
-  MapBuilderBridge map_builder_bridge_ GUARDED_BY(mutex_);
-
+  
+  // MapBuilderBridge map_builder_bridge_ GUARDED_BY(mutex_);
+  std::shared_ptr<MapBuilderBridge> active_map_builder_bridge_ GUARDED_BY(mutex_);
+  
   ::ros::NodeHandle node_handle_;
   ::ros::Publisher submap_list_publisher_;
   ::ros::Publisher trajectory_node_list_publisher_;
