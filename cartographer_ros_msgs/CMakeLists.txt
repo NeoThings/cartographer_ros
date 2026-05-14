@@ -48,6 +48,7 @@ add_service_files(
     DeleteTrajectory.srv
     GetTrajectoryStates.srv
     ReadMetrics.srv
+    SaveMap.srv
     StartTrajectory.srv
     SubmapQuery.srv
     TrajectoryQuery.srv

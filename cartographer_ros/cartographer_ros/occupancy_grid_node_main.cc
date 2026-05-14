@@ -15,6 +15,7 @@
  */
 
 #include <cmath>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -23,7 +24,9 @@
 #include "absl/synchronization/mutex.h"
 #include "cairo/cairo.h"
 #include "cartographer/common/port.h"
+#include "cartographer/io/file_writer.h"
 #include "cartographer/io/image.h"
+#include "cartographer_ros/ros_map.h"
 #include "cartographer/io/submap_painter.h"
 #include "cartographer/mapping/id.h"
 #include "cartographer/transform/rigid_transform.h"
@@ -36,6 +39,7 @@
 #include "gflags/gflags.h"
 #include "nav_msgs/OccupancyGrid.h"
 #include "ros/ros.h"
+#include "cartographer_ros_msgs/SaveMap.h"
 
 DEFINE_double(resolution, 0.05,
               "Resolution of a grid cell in the published occupancy grid.");
@@ -65,6 +69,7 @@ class Node {
  private:
   void HandleSubmapList(const cartographer_ros_msgs::SubmapList::ConstPtr& msg);
   void DrawAndPublish(const ::ros::WallTimerEvent& timer_event);
+  bool SaveMap(cartographer_ros_msgs::SaveMap::Request& req, cartographer_ros_msgs::SaveMap::Response& res);
 
   ::ros::NodeHandle node_handle_;
   const double resolution_;
@@ -75,6 +80,7 @@ class Node {
   ::ros::Publisher occupancy_grid_publisher_ GUARDED_BY(mutex_);
   std::map<SubmapId, SubmapSlice> submap_slices_ GUARDED_BY(mutex_);
   ::ros::WallTimer occupancy_grid_publisher_timer_;
+  ::ros::ServiceServer save_map_service_ GUARDED_BY(mutex_);
   std::string last_frame_id_;
   ros::Time last_timestamp_;
 };
@@ -96,7 +102,8 @@ Node::Node(const double resolution, const double publish_period_sec)
               true /* latched */)),
       occupancy_grid_publisher_timer_(
           node_handle_.createWallTimer(::ros::WallDuration(publish_period_sec),
-                                       &Node::DrawAndPublish, this)) {}
+                                       &Node::DrawAndPublish, this)),
+      save_map_service_(node_handle_.advertiseService("save_map", &Node::SaveMap, this)) {}
 
 void Node::HandleSubmapList(
     const cartographer_ros_msgs::SubmapList::ConstPtr& msg) {
@@ -169,6 +176,29 @@ void Node::DrawAndPublish(const ::ros::WallTimerEvent& unused_timer_event) {
   std::unique_ptr<nav_msgs::OccupancyGrid> msg_ptr = CreateOccupancyGridMsg(
       painted_slices, resolution_, last_frame_id_, last_timestamp_);
   occupancy_grid_publisher_.publish(*msg_ptr);
+}
+
+bool Node::SaveMap(cartographer_ros_msgs::SaveMap::Request& req, cartographer_ros_msgs::SaveMap::Response& res) {
+  absl::MutexLock locker(&mutex_);
+  if (submap_slices_.empty() || last_frame_id_.empty()) {
+    res.success = false;
+    res.message = "No map data available";
+    return true;
+  }
+  auto painted_slices = PaintSubmapSlices(submap_slices_, resolution_);
+  std::string pgm_file = req.map_path + "/" + req.map_name + ".pgm";
+  std::string yaml_file = req.map_path + "/" + req.map_name + ".yaml";
+  ::cartographer::io::Image image(std::move(painted_slices.surface));
+  ::cartographer::io::StreamFileWriter pgm_writer(pgm_file);
+  WritePgm(image, resolution_, &pgm_writer);
+  ::cartographer::io::StreamFileWriter yaml_writer(yaml_file);
+  const Eigen::Vector2d origin(
+      -painted_slices.origin.x() * resolution_,
+      (painted_slices.origin.y() - image.height()) * resolution_);
+  WriteYaml(resolution_, origin, pgm_file, &yaml_writer);
+  res.success = true;
+  res.message = "Map saved to " + yaml_file;
+  return true;
 }
 
 }  // namespace
