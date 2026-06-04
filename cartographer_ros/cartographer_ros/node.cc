@@ -983,9 +983,6 @@ void Node::MaybeWarnAboutTopicMismatch(
 bool Node::HandleResetMapBuilder(
     cartographer_ros_msgs::ResetMapBuilder::Request& request,
     cartographer_ros_msgs::ResetMapBuilder::Response& response) {
-  // wait optimatization done pose_graph()->WaitForAllComputations();
-  // clear map builder bridge 
-  // std::atomic_load(&active_map_builder_bridge_)
   ClearTrajectoryBinding();
   ResetMapBuilderBridge();
   response.status.code = cartographer_ros_msgs::StatusCode::OK;
@@ -995,6 +992,7 @@ bool Node::HandleResetMapBuilder(
 }
 
 void Node::ClearTrajectoryBinding() {
+  absl::MutexLock lock(&mutex_);
   LOG(WARNING) << "clear stuff assigned to trajectory";
   std::map<int, ::cartographer::mapping::PoseExtrapolator>{}.swap(extrapolators_);
   std::map<int, ::ros::Time>{}.swap(last_published_tf_stamps_);
@@ -1008,25 +1006,17 @@ void Node::ResetMapBuilderBridge() {
   absl::MutexLock lock(&mutex_);
   auto new_map_builder =
     cartographer::mapping::CreateMapBuilder(node_options_.map_builder_options);
-
   auto new_bridge =
       std::make_shared<MapBuilderBridge>(
           node_options_,
           std::move(new_map_builder), tf_buffer_);
-
   auto old_bridge = std::atomic_load(&active_map_builder_bridge_);
   std::atomic_store(&active_map_builder_bridge_, new_bridge);
-
-  // trajectory_id_ =
-  //     new_bridge->AddTrajectory(
-  //         expected_sensor_ids_,
-  //         trajectory_options_);
-
-  std::thread([old_bridge]() mutable {
-      std::this_thread::sleep_for(
-          std::chrono::seconds(2));
-      old_bridge.reset();
-  }).detach();
+  std::cout << "[debug] move new bridge to active map builder bridge" << std::endl;
+  // Fast Shutdown.
+  old_bridge->Shutdown();
+  old_bridge.reset();
+  LOG(WARNING) << "Reset old map builder bridge done";
 }
 
 }  // namespace cartographer_ros
