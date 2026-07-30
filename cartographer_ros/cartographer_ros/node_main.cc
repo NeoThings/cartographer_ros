@@ -21,6 +21,7 @@
 #include "cartographer_ros/ros_log_sink.h"
 #include "gflags/gflags.h"
 #include "tf2_ros/transform_listener.h"
+#include <experimental/filesystem>
 
 DEFINE_bool(collect_metrics, false,
             "Activates the collection of runtime metrics. If activated, the "
@@ -80,11 +81,39 @@ void Run() {
   }
 }
 
+namespace fs = std::experimental::filesystem;
+
+void CreateFolderSafely(const fs::path& path) {
+  try {
+      if (fs::exists(path)) {
+        if (fs::is_directory(path)) {
+          std::cout << "floder exist: " << path << std::endl;
+          return;
+        } else {
+          std::cout << "file exist: " << path << std::endl;
+          return;
+        }
+      }
+      if (fs::create_directories(path)) {
+        std::cout << "floder created successfully: " << path << std::endl;
+      } else {
+          std::cout << "floder created failed: " << path << std::endl;
+      }
+  } catch (const fs::filesystem_error& e) {
+    std::cerr << "ERR: " << e.what() << std::endl;
+  }
+}
+
 }  // namespace
 }  // namespace cartographer_ros
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
+  std::string home_dir = std::getenv("HOME");
+  std::string log_path = home_dir + "/.bzrobot/log/cartographer_ros";
+  cartographer_ros::CreateFolderSafely(log_path);
+  FLAGS_log_dir = log_path;  // 设置日志目录
+  FLAGS_stderrthreshold = google::INFO;  // 将 INFO 级别也输出
   google::ParseCommandLineFlags(&argc, &argv, true);
 
   CHECK(!FLAGS_configuration_directory.empty())

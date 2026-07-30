@@ -104,7 +104,7 @@ endif()
 add_library(${PROJECT_NAME} STATIC ${ALL_SRCS})
 add_subdirectory("cartographer_ros")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC cartographer)
+target_link_libraries(${PROJECT_NAME} PUBLIC cartographer stdc++fs)
 
 # Lua
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${LUA_INCLUDE_DIR})

@@ -34,7 +34,8 @@ void WritePgm(const ::cartographer::io::Image& image, const double resolution,
 // Write the corresponding yaml into 'file_writer'.
 void WriteYaml(const double resolution, const Eigen::Vector2d& origin,
                const std::string& pgm_filename,
-               ::cartographer::io::FileWriter* file_writer);
+               ::cartographer::io::FileWriter* file_writer,
+               const int width, const int height);
 
 }  // namespace cartographer_ros
 

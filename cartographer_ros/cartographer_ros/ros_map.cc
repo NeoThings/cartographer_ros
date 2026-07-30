@@ -36,13 +36,18 @@ void WritePgm(const ::cartographer::io::Image& image, const double resolution,
 
 void WriteYaml(const double resolution, const Eigen::Vector2d& origin,
                const std::string& pgm_filename,
-               ::cartographer::io::FileWriter* file_writer) {
+               ::cartographer::io::FileWriter* file_writer,
+               const int width, const int height) {
   // Magic constants taken directly from ros map_saver code:
   // https://github.com/ros-planning/navigation/blob/ac41d2480c4cf1602daf39a6e9629142731d92b0/map_server/src/map_saver.cpp#L114
   const std::string output = absl::StrCat(
-      "image: ", pgm_filename, "\n", "resolution: ", resolution, "\n",
-      "origin: [", origin.x(), ", ", origin.y(),
-      ", 0.0]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.196\n");
+      "image: ", pgm_filename, "\n", 
+      "resolution: ", resolution, "\n",
+      "origin: [", origin.x(), ", ", origin.y(), ", 0.0]\n",
+      "scale: [", width, ", ", height, "]\n",
+      "negate: 0\n",
+      "occupied_thresh: 0.65\n",
+      "free_thresh: 0.196\n");
   file_writer->Write(output.data(), output.size());
 }
 

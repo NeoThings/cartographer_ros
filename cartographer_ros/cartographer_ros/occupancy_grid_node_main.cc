@@ -195,7 +195,7 @@ bool Node::SaveMap(cartographer_ros_msgs::SaveMap::Request& req, cartographer_ro
   const Eigen::Vector2d origin(
       -painted_slices.origin.x() * resolution_,
       (painted_slices.origin.y() - image.height()) * resolution_);
-  WriteYaml(resolution_, origin, pgm_file, &yaml_writer);
+  WriteYaml(resolution_, origin, pgm_file, &yaml_writer, image.width(), image.height());
   res.success = true;
   res.message = "Map saved to " + yaml_file;
   return true;

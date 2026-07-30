@@ -72,6 +72,10 @@ class MapBuilderBridge {
   MapBuilderBridge(const MapBuilderBridge&) = delete;
   MapBuilderBridge& operator=(const MapBuilderBridge&) = delete;
 
+  // Signals the underlying MapBuilder to skip WaitForAllComputations()
+  // Call before releasing the last shared_ptr.
+  void Shutdown() { map_builder_->Shutdown(); }
+
   void LoadState(const std::string& state_filename, bool load_frozen_state);
   int AddTrajectory(
       const std::set<
