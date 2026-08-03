@@ -119,6 +119,9 @@ Node::Node(
   constraint_list_publisher_ =
       node_handle_.advertise<::visualization_msgs::MarkerArray>(
           kConstraintListTopic, kLatestOnlyPublisherQueueSize);
+  latest_inter_constraint_pose_publisher_ =
+      node_handle_.advertise<::visualization_msgs::MarkerArray>(
+          kLatestInterConstraintPoseTopic, kLatestOnlyPublisherQueueSize);
   if (node_options_.publish_tracked_pose) {
     tracked_pose_publisher_ =
         node_handle_.advertise<::geometry_msgs::PoseStamped>(
@@ -166,6 +169,9 @@ Node::Node(
   wall_timers_.push_back(node_handle_.createWallTimer(
       ::ros::WallDuration(kConstraintPublishPeriodSec),
       &Node::PublishConstraintList, this));
+  wall_timers_.push_back(node_handle_.createWallTimer(
+      ::ros::WallDuration(kConstraintPublishPeriodSec),
+      &Node::PublishLatestInterConstraintPose, this));
 }
 
 Node::~Node() { FinishAllTrajectories(); }
@@ -367,6 +373,16 @@ void Node::PublishConstraintList(
     absl::MutexLock lock(&mutex_);
     constraint_list_publisher_.publish(
         std::atomic_load(&active_map_builder_bridge_)->GetConstraintList());
+  }
+}
+
+void Node::PublishLatestInterConstraintPose(
+    const ::ros::WallTimerEvent& unused_timer_event) {
+  if (latest_inter_constraint_pose_publisher_.getNumSubscribers() > 0) {
+    absl::MutexLock lock(&mutex_);
+    latest_inter_constraint_pose_publisher_.publish(
+        std::atomic_load(&active_map_builder_bridge_)
+            ->GetLatestInterConstraintPose());
   }
 }
 

@@ -32,7 +32,7 @@ constexpr char kNavSatFixTopic[] = "fix";
 constexpr char kLandmarkTopic[] = "landmark";
 constexpr char kFinishTrajectoryServiceName[] = "finish_trajectory";
 constexpr char kDeleteTrajectoryServiceName[] = "delete_trajectory";
-constexpr char kOccupancyGridTopic[] = "map";
+constexpr char kOccupancyGridTopic[] = "grid_map";
 constexpr char kScanMatchedPointCloudTopic[] = "scan_matched_points2";
 constexpr char kSubmapListTopic[] = "submap_list";
 constexpr char kTrackedPoseTopic[] = "tracked_pose";
@@ -47,6 +47,8 @@ constexpr char kResetMapBuilderServiceName[] = "reset_map_builder";
 constexpr char kTrajectoryNodeListTopic[] = "trajectory_node_list";
 constexpr char kLandmarkPosesListTopic[] = "landmark_poses_list";
 constexpr char kConstraintListTopic[] = "constraint_list";
+constexpr char kLatestInterConstraintPoseTopic[] =
+    "latest_inter_constraint_pose";
 constexpr double kConstraintPublishPeriodSec = 0.5;
 constexpr double kTopicMismatchCheckDelaySec = 3.0;
 

@@ -33,6 +33,7 @@ using ::cartographer::transform::Rigid3d;
 constexpr double kTrajectoryLineStripMarkerScale = 0.07;
 constexpr double kLandmarkMarkerScale = 0.2;
 constexpr double kConstraintMarkerScale = 0.025;
+constexpr double kLatestInterConstraintMarkerScale = 0.5;
 
 ::std_msgs::ColorRGBA ToMessage(const cartographer::io::FloatColor& color) {
   ::std_msgs::ColorRGBA result;
@@ -531,6 +532,55 @@ visualization_msgs::MarkerArray MapBuilderBridge::GetConstraintList() {
   constraint_list.markers.push_back(constraint_inter_diff_trajectory_marker);
   constraint_list.markers.push_back(residual_inter_diff_trajectory_marker);
   return constraint_list;
+}
+
+visualization_msgs::MarkerArray
+MapBuilderBridge::GetLatestInterConstraintPose() {
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker marker;
+  marker.ns = "Latest inter constraint pose";
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::SPHERE;
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.header.stamp = ros::Time::now();
+  marker.header.frame_id = node_options_.map_frame;
+  marker.scale.x = kLatestInterConstraintMarkerScale;
+  marker.scale.y = kLatestInterConstraintMarkerScale;
+  marker.scale.z = kLatestInterConstraintMarkerScale;
+  marker.color.a = 0.5;
+  marker.color.r = 1.0;
+  marker.color.g = 0.0;
+  marker.color.b = 1.0;  // Magenta
+  marker.pose.orientation.w = 1.0;
+
+  const auto trajectory_node_poses =
+      map_builder_->pose_graph()->GetTrajectoryNodePoses();
+  const auto submap_poses = map_builder_->pose_graph()->GetAllSubmapPoses();
+  const auto constraints = map_builder_->pose_graph()->constraints();
+
+  bool found = false;
+  for (auto it = constraints.rbegin(); it != constraints.rend(); ++it) {
+    if (it->tag !=
+        cartographer::mapping::PoseGraphInterface::Constraint::INTER_SUBMAP) {
+      continue;
+    }
+    const auto submap_it = submap_poses.find(it->submap_id);
+    const auto node_it = trajectory_node_poses.find(it->node_id);
+    if (submap_it == submap_poses.end() ||
+        node_it == trajectory_node_poses.end()) {
+      continue;
+    }
+    const Rigid3d constraint_pose = submap_it->data.pose * it->pose.zbar_ij;
+    marker.pose = ToGeometryMsgPose(constraint_pose);
+    marker.pose.position.z += 0.2;
+    found = true;
+    break;
+  }
+  if (!found) {
+    marker.action = visualization_msgs::Marker::DELETE;
+  }
+  marker_array.markers.push_back(marker);
+  return marker_array;
 }
 
 SensorBridge* MapBuilderBridge::sensor_bridge(const int trajectory_id) {

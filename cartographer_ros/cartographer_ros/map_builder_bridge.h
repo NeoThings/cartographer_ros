@@ -104,6 +104,7 @@ class MapBuilderBridge {
   visualization_msgs::MarkerArray GetTrajectoryNodeList();
   visualization_msgs::MarkerArray GetLandmarkPosesList();
   visualization_msgs::MarkerArray GetConstraintList();
+  visualization_msgs::MarkerArray GetLatestInterConstraintPose();
 
   SensorBridge* sensor_bridge(int trajectory_id);
 
