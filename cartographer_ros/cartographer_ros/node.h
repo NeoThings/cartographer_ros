@@ -48,6 +48,7 @@
 #include "cartographer_ros_msgs/WriteState.h"
 #include "cartographer_ros_msgs/ReadState.h"
 #include "cartographer_ros_msgs/ResetMapBuilder.h"
+#include "cartographer_ros_msgs/SetPoseGraphOptions.h"
 #include "nav_msgs/Odometry.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
@@ -171,6 +172,9 @@ class Node {
   bool HandleResetMapBuilder(
       cartographer_ros_msgs::ResetMapBuilder::Request& request,
       cartographer_ros_msgs::ResetMapBuilder::Response& response);
+  bool HandleSetPoseGraphOptions(
+      cartographer_ros_msgs::SetPoseGraphOptions::Request& request,
+      cartographer_ros_msgs::SetPoseGraphOptions::Response& response);
 
   // Returns the set of SensorIds expected for a trajectory.
   // 'SensorId::id' is the expected ROS topic name.
@@ -185,6 +189,8 @@ class Node {
   void PublishTrajectoryNodeList(const ::ros::WallTimerEvent& timer_event);
   void PublishLandmarkPosesList(const ::ros::WallTimerEvent& timer_event);
   void PublishConstraintList(const ::ros::WallTimerEvent& timer_event);
+  void PublishLatestInterConstraintPose(
+      const ::ros::WallTimerEvent& timer_event);
   bool ValidateTrajectoryOptions(const TrajectoryOptions& options);
   bool ValidateTopicNames(const TrajectoryOptions& options);
   cartographer_ros_msgs::StatusResponse FinishTrajectoryUnderLock(
@@ -213,6 +219,7 @@ class Node {
   ::ros::Publisher trajectory_node_list_publisher_;
   ::ros::Publisher landmark_poses_list_publisher_;
   ::ros::Publisher constraint_list_publisher_;
+  ::ros::Publisher latest_inter_constraint_pose_publisher_;
   ::ros::Publisher tracked_pose_publisher_;
   // These ros::ServiceServers need to live for the lifetime of the node.
   std::vector<::ros::ServiceServer> service_servers_;

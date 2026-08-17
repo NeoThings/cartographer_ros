@@ -20,6 +20,7 @@
 #include "absl/strings/str_cat.h"
 #include "cartographer/io/color.h"
 #include "cartographer/io/proto_stream.h"
+#include "cartographer/mapping/pose_graph.h"
 #include "cartographer_ros/msg_conversion.h"
 #include "cartographer_ros/time_conversion.h"
 #include "cartographer_ros_msgs/StatusCode.h"
@@ -33,6 +34,7 @@ using ::cartographer::transform::Rigid3d;
 constexpr double kTrajectoryLineStripMarkerScale = 0.07;
 constexpr double kLandmarkMarkerScale = 0.2;
 constexpr double kConstraintMarkerScale = 0.025;
+constexpr double kLatestInterConstraintMarkerScale = 0.5;
 
 ::std_msgs::ColorRGBA ToMessage(const cartographer::io::FloatColor& color) {
   ::std_msgs::ColorRGBA result;
@@ -179,6 +181,40 @@ bool MapBuilderBridge::SerializeState(const std::string& filename,
                                       const bool include_unfinished_submaps) {
   return map_builder_->SerializeStateToFile(include_unfinished_submaps,
                                             filename);
+}
+
+cartographer_ros_msgs::StatusResponse MapBuilderBridge::SetPoseGraphOptions(
+    const std::vector<std::string>& names,
+    const std::vector<std::string>& values) {
+  cartographer_ros_msgs::StatusResponse status;
+  if (names.size() != values.size()) {
+    status.code = cartographer_ros_msgs::StatusCode::INVALID_ARGUMENT;
+    status.message = "names and values must have the same length.";
+    return status;
+  }
+  auto* pose_graph =
+      dynamic_cast<::cartographer::mapping::PoseGraph*>(
+          map_builder_->pose_graph());
+  if (pose_graph == nullptr) {
+    status.code = cartographer_ros_msgs::StatusCode::INVALID_ARGUMENT;
+    status.message = "Pose graph does not support runtime option updates.";
+    return status;
+  }
+  std::vector<std::pair<std::string, std::string>> name_value_pairs;
+  name_value_pairs.reserve(names.size());
+  for (size_t i = 0; i < names.size(); ++i) {
+    name_value_pairs.emplace_back(names[i], values[i]);
+  }
+  const std::string error = pose_graph->SetRuntimeOptions(name_value_pairs);
+  if (!error.empty()) {
+    status.code = cartographer_ros_msgs::StatusCode::INVALID_ARGUMENT;
+    status.message = error;
+    LOG(ERROR) << status.message;
+    return status;
+  }
+  status.code = cartographer_ros_msgs::StatusCode::OK;
+  status.message = "Pose graph options updated.";
+  return status;
 }
 
 void MapBuilderBridge::HandleSubmapQuery(
@@ -531,6 +567,55 @@ visualization_msgs::MarkerArray MapBuilderBridge::GetConstraintList() {
   constraint_list.markers.push_back(constraint_inter_diff_trajectory_marker);
   constraint_list.markers.push_back(residual_inter_diff_trajectory_marker);
   return constraint_list;
+}
+
+visualization_msgs::MarkerArray
+MapBuilderBridge::GetLatestInterConstraintPose() {
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker marker;
+  marker.ns = "Latest inter constraint pose";
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::SPHERE;
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.header.stamp = ros::Time::now();
+  marker.header.frame_id = node_options_.map_frame;
+  marker.scale.x = kLatestInterConstraintMarkerScale;
+  marker.scale.y = kLatestInterConstraintMarkerScale;
+  marker.scale.z = kLatestInterConstraintMarkerScale;
+  marker.color.a = 0.5;
+  marker.color.r = 1.0;
+  marker.color.g = 0.0;
+  marker.color.b = 1.0;  // Magenta
+  marker.pose.orientation.w = 1.0;
+
+  const auto trajectory_node_poses =
+      map_builder_->pose_graph()->GetTrajectoryNodePoses();
+  const auto submap_poses = map_builder_->pose_graph()->GetAllSubmapPoses();
+  const auto constraints = map_builder_->pose_graph()->constraints();
+
+  bool found = false;
+  for (auto it = constraints.rbegin(); it != constraints.rend(); ++it) {
+    if (it->tag !=
+        cartographer::mapping::PoseGraphInterface::Constraint::INTER_SUBMAP) {
+      continue;
+    }
+    const auto submap_it = submap_poses.find(it->submap_id);
+    const auto node_it = trajectory_node_poses.find(it->node_id);
+    if (submap_it == submap_poses.end() ||
+        node_it == trajectory_node_poses.end()) {
+      continue;
+    }
+    const Rigid3d constraint_pose = submap_it->data.pose * it->pose.zbar_ij;
+    marker.pose = ToGeometryMsgPose(constraint_pose);
+    marker.pose.position.z += 0.2;
+    found = true;
+    break;
+  }
+  if (!found) {
+    marker.action = visualization_msgs::Marker::DELETE;
+  }
+  marker_array.markers.push_back(marker);
+  return marker_array;
 }
 
 SensorBridge* MapBuilderBridge::sensor_bridge(const int trajectory_id) {

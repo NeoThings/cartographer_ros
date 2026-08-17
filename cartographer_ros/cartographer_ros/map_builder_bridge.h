@@ -34,6 +34,7 @@
 #include "cartographer_ros_msgs/SubmapEntry.h"
 #include "cartographer_ros_msgs/SubmapList.h"
 #include "cartographer_ros_msgs/SubmapQuery.h"
+#include "cartographer_ros_msgs/StatusResponse.h"
 #include "cartographer_ros_msgs/TrajectoryQuery.h"
 #include "geometry_msgs/TransformStamped.h"
 #include "nav_msgs/OccupancyGrid.h"
@@ -88,6 +89,11 @@ class MapBuilderBridge {
   bool SerializeState(const std::string& filename,
                       const bool include_unfinished_submaps);
 
+  // Applies runtime pose graph option overrides (thresholds/weights/flags).
+  cartographer_ros_msgs::StatusResponse SetPoseGraphOptions(
+      const std::vector<std::string>& names,
+      const std::vector<std::string>& values);
+
   void HandleSubmapQuery(
       cartographer_ros_msgs::SubmapQuery::Request& request,
       cartographer_ros_msgs::SubmapQuery::Response& response);
@@ -104,6 +110,7 @@ class MapBuilderBridge {
   visualization_msgs::MarkerArray GetTrajectoryNodeList();
   visualization_msgs::MarkerArray GetLandmarkPosesList();
   visualization_msgs::MarkerArray GetConstraintList();
+  visualization_msgs::MarkerArray GetLatestInterConstraintPose();
 
   SensorBridge* sensor_bridge(int trajectory_id);
 

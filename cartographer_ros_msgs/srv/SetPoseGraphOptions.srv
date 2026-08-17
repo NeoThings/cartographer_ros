@@ -1,0 +1,9 @@
+# Dotted keys relative to POSE_GRAPH, e.g.:
+#   constraint_builder.min_score
+#   optimize_every_n_nodes
+#   optimization_problem.huber_scale
+# Values are parsed as bool/int/double from strings ("0.55", "true", "90").
+string[] names
+string[] values
+---
+cartographer_ros_msgs/StatusResponse status
