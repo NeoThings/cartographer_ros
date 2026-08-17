@@ -55,6 +55,7 @@ add_service_files(
     WriteState.srv
     ReadState.srv
     ResetMapBuilder.srv
+    SetPoseGraphOptions.srv
 )
 
 generate_messages(

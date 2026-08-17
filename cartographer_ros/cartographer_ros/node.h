@@ -48,6 +48,7 @@
 #include "cartographer_ros_msgs/WriteState.h"
 #include "cartographer_ros_msgs/ReadState.h"
 #include "cartographer_ros_msgs/ResetMapBuilder.h"
+#include "cartographer_ros_msgs/SetPoseGraphOptions.h"
 #include "nav_msgs/Odometry.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
@@ -171,6 +172,9 @@ class Node {
   bool HandleResetMapBuilder(
       cartographer_ros_msgs::ResetMapBuilder::Request& request,
       cartographer_ros_msgs::ResetMapBuilder::Response& response);
+  bool HandleSetPoseGraphOptions(
+      cartographer_ros_msgs::SetPoseGraphOptions::Request& request,
+      cartographer_ros_msgs::SetPoseGraphOptions::Response& response);
 
   // Returns the set of SensorIds expected for a trajectory.
   // 'SensorId::id' is the expected ROS topic name.

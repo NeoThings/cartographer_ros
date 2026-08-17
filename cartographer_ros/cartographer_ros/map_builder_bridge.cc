@@ -20,6 +20,7 @@
 #include "absl/strings/str_cat.h"
 #include "cartographer/io/color.h"
 #include "cartographer/io/proto_stream.h"
+#include "cartographer/mapping/pose_graph.h"
 #include "cartographer_ros/msg_conversion.h"
 #include "cartographer_ros/time_conversion.h"
 #include "cartographer_ros_msgs/StatusCode.h"
@@ -180,6 +181,40 @@ bool MapBuilderBridge::SerializeState(const std::string& filename,
                                       const bool include_unfinished_submaps) {
   return map_builder_->SerializeStateToFile(include_unfinished_submaps,
                                             filename);
+}
+
+cartographer_ros_msgs::StatusResponse MapBuilderBridge::SetPoseGraphOptions(
+    const std::vector<std::string>& names,
+    const std::vector<std::string>& values) {
+  cartographer_ros_msgs::StatusResponse status;
+  if (names.size() != values.size()) {
+    status.code = cartographer_ros_msgs::StatusCode::INVALID_ARGUMENT;
+    status.message = "names and values must have the same length.";
+    return status;
+  }
+  auto* pose_graph =
+      dynamic_cast<::cartographer::mapping::PoseGraph*>(
+          map_builder_->pose_graph());
+  if (pose_graph == nullptr) {
+    status.code = cartographer_ros_msgs::StatusCode::INVALID_ARGUMENT;
+    status.message = "Pose graph does not support runtime option updates.";
+    return status;
+  }
+  std::vector<std::pair<std::string, std::string>> name_value_pairs;
+  name_value_pairs.reserve(names.size());
+  for (size_t i = 0; i < names.size(); ++i) {
+    name_value_pairs.emplace_back(names[i], values[i]);
+  }
+  const std::string error = pose_graph->SetRuntimeOptions(name_value_pairs);
+  if (!error.empty()) {
+    status.code = cartographer_ros_msgs::StatusCode::INVALID_ARGUMENT;
+    status.message = error;
+    LOG(ERROR) << status.message;
+    return status;
+  }
+  status.code = cartographer_ros_msgs::StatusCode::OK;
+  status.message = "Pose graph options updated.";
+  return status;
 }
 
 void MapBuilderBridge::HandleSubmapQuery(
